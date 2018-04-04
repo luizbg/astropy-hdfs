@@ -132,8 +132,10 @@ def fitsopen(name, mode='readonly', memmap=None, save_backup=False,
 
         - **hadoop** : bool
 
-            If `True`, then the FITS file is stored at Hadoop Distributed File System.
+            If `True`, then the FITS file to be opened is stored in the Hadoop Distributed File System.
             In order to be able to open the file, a copy is made on the pc executing this script.
+            If the file is in HDFS, then the specified name when calling .open() needs to be the HDFS path of the file.
+            Example: .open('HDFS_file_path', hadoop=True)
 
     Returns
     -------
@@ -144,10 +146,6 @@ def fitsopen(name, mode='readonly', memmap=None, save_backup=False,
     """
 
     from .. import conf
-
-    # Teste para ver se este arquivo modificava apenas .py dentro do projeto
-    # ou se era um override no Astropy instalado no pc.
-    # Dica: modificar este arquivo tem efeito somente em .py's de dentro do projeto
 
     if memmap is None:
         # distinguish between True (kwarg explicitly set)
@@ -171,17 +169,22 @@ def fitsopen(name, mode='readonly', memmap=None, save_backup=False,
     if 'uint' not in kwargs:
         uint = conf.enable_uint
 
+    # If hadoop is True, then the code connects to the specified host and port
     if 'hadoop' in kwargs and kwargs['hadoop']:
-        if connectedToHDFS==False:
-            hdfs=connectToHDFS()
+        if not connectedToHDFS:
+            hdfs = connectToHDFS()
 
-        localPath=input("Type the local filesystem path where you want to save the file, including the name of the copied file: ")
-        hdfs.get(name, localPath)
+        local_path = input("Type the local filesystem path where you want to save the file, including the name of the copied file: ")
+        # Example: "/home/user/Downloads/x.fits" as input will copy x.fits (stored in HDFS)
+        # to the specified path in the local file system
+
+        hdfs.get(name, local_path)
+        name = local_path
 
     if not name:
         raise ValueError('Empty filename: {}'.format(repr(name)))
 
-    return HDUList.fromfile(localPath, mode, memmap, save_backup, cache,
+    return HDUList.fromfile(name, mode, memmap, save_backup, cache,
                             lazy_load_hdus, **kwargs)
 
 
